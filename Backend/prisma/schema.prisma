@@ -1,0 +1,29 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model gyakorlatok {
+  id                                                                 Int            @id @default(autoincrement())
+  nev                                                                String         @db.VarChar(100)
+  elsodleges_izomcsoport_id                                          Int
+  masodlagos_izomcsoport_id                                          Int?
+  izomcsoportok_gyakorlatok_elsodleges_izomcsoport_idToizomcsoportok izomcsoportok  @relation("gyakorlatok_elsodleges_izomcsoport_idToizomcsoportok", fields: [elsodleges_izomcsoport_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "gyakorlatok_ibfk_1")
+  izomcsoportok_gyakorlatok_masodlagos_izomcsoport_idToizomcsoportok izomcsoportok? @relation("gyakorlatok_masodlagos_izomcsoport_idToizomcsoportok", fields: [masodlagos_izomcsoport_id], references: [id], onUpdate: Restrict, map: "gyakorlatok_ibfk_2")
+
+  @@index([elsodleges_izomcsoport_id], map: "elsodleges_izomcsoport_id")
+  @@index([masodlagos_izomcsoport_id], map: "masodlagos_izomcsoport_id")
+}
+
+model izomcsoportok {
+  id                                                               Int           @id @default(autoincrement())
+  nev                                                              String        @unique(map: "nev") @db.VarChar(50)
+  gyakorlatok_gyakorlatok_elsodleges_izomcsoport_idToizomcsoportok gyakorlatok[] @relation("gyakorlatok_elsodleges_izomcsoport_idToizomcsoportok")
+  gyakorlatok_gyakorlatok_masodlagos_izomcsoport_idToizomcsoportok gyakorlatok[] @relation("gyakorlatok_masodlagos_izomcsoport_idToizomcsoportok")
+}
