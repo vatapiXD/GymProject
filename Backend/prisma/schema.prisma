@@ -84,6 +84,16 @@ model userek {
   edzestervek edzestervek[]
 }
 
+model kaja {
+  id         Int            @id @default(autoincrement())
+  nev        String         @unique(map: "nev") @db.VarChar(100)
+  kategoria  kaja_kategoria
+  kaloria    Decimal        @db.Decimal(6, 2)
+  feherje    Decimal        @db.Decimal(5, 2)
+  szenhidrat Decimal        @db.Decimal(5, 2)
+  zsir       Decimal        @db.Decimal(5, 2)
+}
+
 enum userek_nem {
   ferfi
   no
@@ -95,4 +105,15 @@ enum userek_cel {
   fogyas
   erodobas
   szintentartas
+}
+
+enum kaja_kategoria {
+  hus
+  hal_tengeri
+  tejtermek_tojas
+  zoldseg
+  gyumolcs
+  gabonafele_teszta
+  huvelyes
+  magvas_zsir
 }

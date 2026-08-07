@@ -9,6 +9,7 @@ import { GyakorlatokModule } from './gyakorlatok/gyakorlatok.module';
 import { IzomcsoportokModule } from './izomcsoportok/izomcsoportok.module';
 import { PrismaModule } from './prisma.module';
 import { UserekModule } from './userek/userek.module';
+import { KajaModule } from './kaja/kaja.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { UserekModule } from './userek/userek.module';
     EdzesNapokModule,
     EdzestervekModule,
     EdzestervGyakorlatokModule,
+    KajaModule,
   ],
   controllers: [AppController],
   providers: [AppService],
