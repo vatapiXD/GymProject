@@ -1,0 +1,12 @@
+ .auth-tabs .nav-link {
+	font-weight: 600;
+}
+
+.auth-tabs .nav-link.active {
+	color: #0d6efd;
+}
+
+.modal-content {
+	border: 0;
+	box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
+}

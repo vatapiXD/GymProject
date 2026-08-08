@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { UserekService } from './userek.service';
 import { CreateUserekDto } from './dto/create-userek.dto';
+import { LoginUserekDto } from './dto/login-userek.dto';
 import { UpdateUserekDto } from './dto/update-userek.dto';
 
 @Controller('userek')
@@ -19,6 +20,11 @@ export class UserekController {
   @Post()
   create(@Body() createUserekDto: CreateUserekDto) {
     return this.userekService.create(createUserekDto);
+  }
+
+  @Post('login')
+  login(@Body() loginUserekDto: LoginUserekDto) {
+    return this.userekService.login(loginUserekDto);
   }
 
   @Get()
