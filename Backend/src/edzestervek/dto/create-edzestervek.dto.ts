@@ -19,4 +19,8 @@ export class CreateEdzestervekDto {
   @IsOptional()
   @IsBoolean()
   aktiv?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  publikus?: boolean;
 }

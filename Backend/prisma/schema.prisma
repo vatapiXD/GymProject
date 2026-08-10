@@ -63,6 +63,7 @@ model edzestervek {
   nev         String        @db.VarChar(100)
   leiras      String?       @db.Text
   aktiv       Boolean?      @default(true)
+  publikus    Boolean?      @default(false)
   letrehozva  DateTime      @default(now()) @db.Timestamp(0)
   edzes_napok edzes_napok[]
   userek      userek        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "edzestervek_ibfk_1")

@@ -36,6 +36,7 @@ interface SavedPlan {
   nev: string;
   leiras?: string | null;
   aktiv?: boolean | null;
+  publikus?: boolean | null;
   letrehozva?: string;
   userek?: AvailableUser;
 }
@@ -190,7 +191,9 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
   const [planDayCount, setPlanDayCount] = useState(3);
   const [planUserId, setPlanUserId] = useState<string>('');
   const [planActive, setPlanActive] = useState(true);
+  const [planPublic, setPlanPublic] = useState(false);
   const [draftDays, setDraftDays] = useState<DraftDay[]>(() => makeDraftDays(3));
+  const [editingPlanId, setEditingPlanId] = useState<number | null>(null);
 
   const defaultExerciseId = useMemo(() => gyakorlatok[0]?.id.toString() ?? '', [gyakorlatok]);
 
@@ -220,15 +223,31 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
     return new Map(gyakorlatok.map((exercise) => [exercise.id, exercise]));
   }, [gyakorlatok]);
 
+  const editingPlan = useMemo(() => {
+    return plans.find((plan) => plan.id === editingPlanId) ?? null;
+  }, [editingPlanId, plans]);
+
   const activePlans = plans.filter((plan) => plan.aktiv !== false).length;
 
   const loadData = async () => {
     setIsLoading(true);
     setErrorMessage(null);
 
+    if (!currentUser?.id) {
+      setPlans([]);
+      setDays([]);
+      setPlanExercises([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const authHeaders = {
+      'X-User-Id': String(currentUser.id),
+    };
+
     try {
       const [planResponse, dayResponse, exerciseResponse, exerciseCatalogResponse, userResponse] = await Promise.all([
-        fetch(`${API_URL}/edzestervek`),
+        fetch(`${API_URL}/edzestervek`, { headers: authHeaders }),
         fetch(`${API_URL}/edzes-napok`),
         fetch(`${API_URL}/edzesterv-gyakorlatok`),
         fetch(`${API_URL}/gyakorlatok`),
@@ -290,7 +309,9 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
   useEffect(() => {
     void loadData();
     // The first render loads the full reference set for the form and list.
-  }, []);
+    // Re-runs whenever the logged-in user changes so the visible plans update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
 
   useEffect(() => {
     if (currentUser?.id) {
@@ -382,8 +403,113 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
     );
   };
 
+  const handleStartEdit = (plan: SavedPlan) => {
+    if (!currentUser?.id || plan.user_id !== currentUser.id) {
+      setErrorMessage('Csak a saját edzéstervedet módosíthatod.');
+      return;
+    }
+
+    const planDays = days
+      .filter((day) => day.edzesterv_id === plan.id)
+      .sort((left, right) => left.sorrend - right.sorrend);
+
+    const loadedDays: DraftDay[] =
+      planDays.length > 0
+        ? planDays.map((day) => {
+            const dayExercises = planExercises
+              .filter((exercise) => exercise.edzes_nap_id === day.id)
+              .sort((left, right) => left.sorrend - right.sorrend);
+
+            return {
+              draftId: makeId(),
+              nev: day.nev,
+              pendingGyakorlatId: dayExercises[0]?.gyakorlat_id.toString() ?? defaultExerciseId,
+              exercises: dayExercises.map((exercise) => ({
+                draftId: makeId(),
+                gyakorlatId: exercise.gyakorlat_id.toString(),
+                sorozatszam: exercise.sorozatszam?.toString() ?? '3',
+                ismetlesszamMin: exercise.ismetlesszam_min?.toString() ?? '8',
+                ismetlesszamMax: exercise.ismetlesszam_max?.toString() ?? '12',
+                pihenoMasodperc: exercise.piheno_masodperc?.toString() ?? '90',
+                megjegyzese: exercise.megjegyzese ?? '',
+              })),
+            } satisfies DraftDay;
+          })
+        : makeDraftDays(Math.max(planDayCount, 1), [], defaultExerciseId);
+
+    setEditingPlanId(plan.id);
+    setPlanName(plan.nev);
+    setPlanDescription(plan.leiras ?? '');
+    setPlanDayCount(Math.max(planDays.length, 1));
+    setPlanUserId(String(plan.user_id));
+    setPlanActive(plan.aktiv !== false);
+    setPlanPublic(plan.publikus === true);
+    setDraftDays(loadedDays);
+    setErrorMessage(null);
+    setStatusMessage(null);
+    setActiveTab('create');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPlanId(null);
+    setPlanName('');
+    setPlanDescription('');
+    setPlanDayCount(3);
+    setPlanActive(true);
+    setPlanPublic(false);
+    setDraftDays(makeDraftDays(3, [], defaultExerciseId));
+    setErrorMessage(null);
+    setStatusMessage(null);
+  };
+
+  const handleDelete = async (planId: number) => {
+    if (!currentUser?.id) {
+      setErrorMessage('Bejelentkezés szükséges az edzésterv törléséhez.');
+      return;
+    }
+
+    const plan = plans.find((candidate) => candidate.id === planId);
+    const isConfirmed = window.confirm(
+      `Biztosan törölni szeretnéd a(z) "${plan?.nev ?? `#${planId}`}" edzéstervet? A művelet nem visszavonható.`,
+    );
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setStatusMessage(null);
+
+    try {
+      const response = await fetch(`${API_URL}/edzestervek/${planId}`, {
+        method: 'DELETE',
+        headers: {
+          'X-User-Id': String(currentUser.id),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(await extractFriendlyErrorMessage(response, 'Nem sikerült törölni az edzéstervet.'));
+      }
+
+      if (editingPlanId === planId) {
+        handleCancelEdit();
+      }
+
+      setStatusMessage('Az edzésterv sikeresen törölve.');
+      await loadData();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Nem sikerült törölni az edzéstervet.');
+    }
+  };
+
   const handleCreateSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (!currentUser?.id) {
+      setErrorMessage('Bejelentkezés szükséges az edzésterv létrehozásához.');
+      return;
+    }
 
     if (!planUserId) {
       setErrorMessage('Válassz egy felhasználót az edzésterv mentéséhez.');
@@ -400,24 +526,66 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
     setStatusMessage(null);
 
     try {
-      const planResponse = await fetch(`${API_URL}/edzestervek`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: Number(planUserId),
-          nev: planName.trim(),
-          leiras: planDescription.trim() || undefined,
-          aktiv: planActive,
-        }),
-      });
+      let targetPlanId: number;
 
-      if (!planResponse.ok) {
-        throw new Error(await extractFriendlyErrorMessage(planResponse, 'Nem sikerült létrehozni az edzéstervet.'));
+      if (editingPlanId !== null) {
+        const planResponse = await fetch(`${API_URL}/edzestervek/${editingPlanId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-Id': String(currentUser.id),
+          },
+          body: JSON.stringify({
+            user_id: Number(planUserId),
+            nev: planName.trim(),
+            leiras: planDescription.trim() || undefined,
+            aktiv: planActive,
+            publikus: planPublic,
+          }),
+        });
+
+        if (!planResponse.ok) {
+          throw new Error(await extractFriendlyErrorMessage(planResponse, 'Nem sikerült módosítani az edzéstervet.'));
+        }
+
+        targetPlanId = editingPlanId;
+
+        const existingDays = days.filter((day) => day.edzesterv_id === editingPlanId);
+
+        for (const dayToDelete of existingDays) {
+          const dayDeleteResponse = await fetch(`${API_URL}/edzes-napok/${dayToDelete.id}`, {
+            method: 'DELETE',
+          });
+
+          if (!dayDeleteResponse.ok) {
+            throw new Error(
+              await extractFriendlyErrorMessage(dayDeleteResponse, 'Nem sikerült törölni a régi edzésnapokat.'),
+            );
+          }
+        }
+      } else {
+        const planResponse = await fetch(`${API_URL}/edzestervek`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-Id': String(currentUser.id),
+          },
+          body: JSON.stringify({
+            user_id: Number(planUserId),
+            nev: planName.trim(),
+            leiras: planDescription.trim() || undefined,
+            aktiv: planActive,
+            publikus: planPublic,
+          }),
+        });
+
+        if (!planResponse.ok) {
+          throw new Error(await extractFriendlyErrorMessage(planResponse, 'Nem sikerült létrehozni az edzéstervet.'));
+        }
+
+        const createdPlan = (await planResponse.json()) as SavedPlan;
+        targetPlanId = createdPlan.id;
       }
-
-      const createdPlan = (await planResponse.json()) as SavedPlan;
 
       for (let dayIndex = 0; dayIndex < draftDays.length; dayIndex += 1) {
         const draftDay = draftDays[dayIndex];
@@ -427,7 +595,7 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            edzesterv_id: createdPlan.id,
+            edzesterv_id: targetPlanId,
             nev: draftDay.nev.trim() || `${dayIndex + 1}. Nap`,
             sorrend: dayIndex + 1,
           }),
@@ -471,18 +639,22 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
         }
       }
 
-      setStatusMessage('Az edzésterv sikeresen létrejött és elmentve a backendbe.');
-      setPlanName('');
-      setPlanDescription('');
-      setPlanDayCount(3);
-      setPlanActive(true);
-      setDraftDays(makeDraftDays(3, [], defaultExerciseId));
-      setSelectedPlanIdForList(createdPlan.id);
+      const wasEditing = editingPlanId !== null;
+
+      handleCancelEdit();
+
+      if (wasEditing) {
+        setStatusMessage('Az edzésterv sikeresen módosítva és elmentve a backendbe.');
+      } else {
+        setStatusMessage('Az edzésterv sikeresen létrejött és elmentve a backendbe.');
+      }
+
+      setSelectedPlanIdForList(targetPlanId);
       setActiveTab('list');
 
       await loadData();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Nem sikerült létrehozni az edzéstervet.');
+      setErrorMessage(error instanceof Error ? error.message : 'Nem sikerült menteni az edzéstervet.');
     } finally {
       setIsSaving(false);
     }
@@ -546,10 +718,26 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
           </Alert>
         )}
 
+        {!currentUser && (
+          <Alert variant="warning" className="shadow-sm">
+            Az edzéstervek megtekintéséhez és létrehozásához be kell jelentkezned. Kattints a <strong>Profilom</strong> menüpontra a bejelentkezéshez.
+          </Alert>
+        )}
+
         <Tabs activeKey={activeTab} onSelect={(key) => setActiveTab((key as ActiveTab) ?? 'create')} className="mb-4">
           <Tab eventKey="create" title="Edzésterv létrehozása">
             <Card className="plan-panel border-0">
               <Card.Body>
+                {editingPlan && (
+                  <Alert variant="info" className="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div className="mb-0">
+                      <strong>Módosítás alatt:</strong> {editingPlan.nev}
+                    </div>
+                    <Button variant="outline-secondary" size="sm" type="button" onClick={handleCancelEdit}>
+                      Módosítás megszakítása
+                    </Button>
+                  </Alert>
+                )}
                 <Form onSubmit={handleCreateSubmit}>
                   <Row className="g-4 mb-4">
                     <Col lg={4}>
@@ -607,14 +795,22 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
                     </Col>
                   </Row>
 
-                  <Form.Check
-                    type="switch"
-                    id="plan-active-switch"
-                    className="mb-4"
-                    label="Aktív terv"
-                    checked={planActive}
-                    onChange={(event) => setPlanActive(event.target.checked)}
-                  />
+                  <div className="d-flex gap-4 mb-4">
+                    <Form.Check
+                      type="switch"
+                      id="plan-active-switch"
+                      label="Aktív terv"
+                      checked={planActive}
+                      onChange={(event) => setPlanActive(event.target.checked)}
+                    />
+                    <Form.Check
+                      type="switch"
+                      id="plan-public-switch"
+                      label="Publikus (mindenki láthatja)"
+                      checked={planPublic}
+                      onChange={(event) => setPlanPublic(event.target.checked)}
+                    />
+                  </div>
 
                   <Row className="g-4">
                     {draftDays.map((day, dayIndex) => (
@@ -792,9 +988,20 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
                     ))}
                   </Row>
 
-                  <div className="d-flex justify-content-end">
+                  <div className="d-flex justify-content-end gap-2">
+                    {editingPlanId !== null && (
+                      <Button
+                        type="button"
+                        variant="outline-secondary"
+                        size="lg"
+                        onClick={handleCancelEdit}
+                        disabled={isSaving}
+                      >
+                        Mégse
+                      </Button>
+                    )}
                     <Button type="submit" variant="primary" size="lg" disabled={isSaving || gyakorlatok.length === 0}>
-                      {isSaving ? 'Mentés...' : 'Edzésterv mentése'}
+                      {isSaving ? 'Mentés...' : editingPlanId !== null ? 'Módosítás mentése' : 'Edzésterv mentése'}
                     </Button>
                   </div>
                 </Form>
@@ -853,9 +1060,16 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
                                     {plan.userek?.nev ?? `User #${plan.user_id}`} · {formatDate(plan.letrehozva)}
                                   </div>
                                 </div>
-                                <Badge bg={plan.aktiv === false ? 'secondary' : 'success'}>
-                                  {plan.aktiv === false ? 'Inaktív' : 'Aktív'}
-                                </Badge>
+                                <div className="d-flex flex-column align-items-end gap-1">
+                                  <Badge bg={plan.aktiv === false ? 'secondary' : 'success'}>
+                                    {plan.aktiv === false ? 'Inaktív' : 'Aktív'}
+                                  </Badge>
+                                  {plan.publikus === true && (
+                                    <Badge bg="info" text="dark">
+                                      Publikus
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
                               <div className="plan-card__stats mt-3">
                                 <span>{planDays.length} nap</span>
@@ -885,10 +1099,30 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
                             <h3 className="h2 fw-bold mb-2">{selectedPlan.nev}</h3>
                             <p className="text-secondary mb-0">{selectedPlan.leiras || 'Ehhez a tervhez még nincs leírás.'}</p>
                           </div>
-                          <div className="plan-detail__date text-end">
-                            <div className="text-uppercase small text-secondary fw-semibold">Létrehozva</div>
-                            <div className="fs-5 fw-semibold">{formatDate(selectedPlan.letrehozva)}</div>
-                            <div className="text-secondary small mt-1">User ID: {selectedPlan.user_id}</div>
+                          <div className="d-flex flex-column align-items-end gap-3">
+                            <div className="plan-detail__date text-end">
+                              <div className="text-uppercase small text-secondary fw-semibold">Létrehozva</div>
+                              <div className="fs-5 fw-semibold">{formatDate(selectedPlan.letrehozva)}</div>
+                              <div className="text-secondary small mt-1">User ID: {selectedPlan.user_id}</div>
+                            </div>
+                            <div className="d-flex gap-2">
+                              <Button
+                                type="button"
+                                variant="outline-primary"
+                                size="sm"
+                                onClick={() => handleStartEdit(selectedPlan)}
+                              >
+                                Módosítás
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline-danger"
+                                size="sm"
+                                onClick={() => void handleDelete(selectedPlan.id)}
+                              >
+                                Törlés
+                              </Button>
+                            </div>
                           </div>
                         </div>
 
