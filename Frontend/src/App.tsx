@@ -6,7 +6,7 @@ import { Alert, Button, Dropdown, Form, InputGroup, Modal, Nav, Navbar, Tab, Tab
 import { Edzesterv } from './components/Edzesterv';
 import { HomePage } from './pages/HomePage';
 
-const API_URL = 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
 
 const STORAGE_KEY = 'dz-gym-user';
 

@@ -5,8 +5,9 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model gyakorlatok {
@@ -24,7 +25,7 @@ model gyakorlatok {
 
 model izomcsoportok {
   id                                                               Int           @id @default(autoincrement())
-  nev                                                              String        @unique(map: "nev") @db.VarChar(50)
+  nev                                                              String        @unique(map: "izomcsoportok_nev_key") @db.VarChar(50)
   gyakorlatok_gyakorlatok_elsodleges_izomcsoport_idToizomcsoportok gyakorlatok[] @relation("gyakorlatok_elsodleges_izomcsoport_idToizomcsoportok")
   gyakorlatok_gyakorlatok_masodlagos_izomcsoport_idToizomcsoportok gyakorlatok[] @relation("gyakorlatok_masodlagos_izomcsoport_idToizomcsoportok")
 }
@@ -88,7 +89,7 @@ model userek {
 
 model kaja {
   id         Int            @id @default(autoincrement())
-  nev        String         @unique(map: "nev") @db.VarChar(100)
+  nev        String         @unique(map: "kaja_nev_key") @db.VarChar(100)
   kategoria  kaja_kategoria
   kaloria    Decimal        @db.Decimal(6, 2)
   feherje    Decimal        @db.Decimal(5, 2)
