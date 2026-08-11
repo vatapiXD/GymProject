@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { Alert, Button, Form, InputGroup, Modal, Nav, Navbar, Tab, Tabs } from 'react-bootstrap';
+import { Alert, Button, Dropdown, Form, InputGroup, Modal, Nav, Navbar, Tab, Tabs } from 'react-bootstrap';
 import { Edzesterv } from './components/Edzesterv';
 import { HomePage } from './pages/HomePage';
 
 const API_URL = 'http://localhost:3000';
+
+const STORAGE_KEY = 'dz-gym-user';
 
 type AuthMode = 'login' | 'register';
 
@@ -14,6 +16,7 @@ type LoggedInUser = {
   id: number;
   nev: string;
   email: string;
+  rang?: string | null;
 };
 
 type PasswordVisibilityState = {
@@ -51,7 +54,19 @@ function App() {
   const [pathname, setPathname] = useState(window.location.pathname);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>('login');
-  const [loggedInUser, setLoggedInUser] = useState<LoggedInUser | null>(null);
+  const [loggedInUser, setLoggedInUser] = useState<LoggedInUser | null>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+
+      if (stored) {
+        return JSON.parse(stored) as LoggedInUser;
+      }
+    } catch {
+      // Ignore corrupt storage.
+    }
+
+    return null;
+  });
   const [registerForm, setRegisterForm] = useState({
     nev: '',
     email: '',
@@ -111,6 +126,12 @@ function App() {
     setShowPassword({ login: false, register: false });
   };
 
+  const handleLogout = () => {
+    setLoggedInUser(null);
+    localStorage.removeItem(STORAGE_KEY);
+    setShowAuthModal(false);
+  };
+
   const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoggingIn(true);
@@ -133,6 +154,7 @@ function App() {
 
       const user = (await response.json()) as LoggedInUser;
       setLoggedInUser(user);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
       setLoginStatus({
         type: 'success',
         message: `Sikeres bejelentkezés: ${user.nev}`,
@@ -229,15 +251,26 @@ function App() {
               <Nav.Link href="#exercises">Gyakorlatok</Nav.Link>
               <Nav.Link href="#nutrition">Kaja & Makrók</Nav.Link>
               <Nav.Link href="#diet">Étrend</Nav.Link>
-              <Nav.Link
-                href="#profile"
-                onClick={(event) => {
-                  event.preventDefault();
-                  openAuthModal();
-                }}
-              >
-                {loggedInUser ? loggedInUser.nev : 'Profilom'}
-              </Nav.Link>
+              {loggedInUser ? (
+                <Dropdown as={Nav.Item}>
+                  <Dropdown.Toggle as={Nav.Link} className="text-white">
+                    {loggedInUser.nev}
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu align="end">
+                    <Dropdown.Item onClick={handleLogout}>Kijelentkezés</Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown>
+              ) : (
+                <Nav.Link
+                  href="#profile"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    openAuthModal();
+                  }}
+                >
+                  Profilom
+                </Nav.Link>
+              )}
             </Nav>
           </Navbar.Collapse>
         </Navbar>
@@ -249,6 +282,24 @@ function App() {
             <Modal.Title>{loggedInUser ? 'Profilom' : 'Profil hozzáférés'}</Modal.Title>
           </Modal.Header>
           <Modal.Body>
+            {loggedInUser ? (
+              <div className="text-center py-3">
+                <p className="mb-4">
+                  <strong>{loggedInUser.nev}</strong>
+                  <br />
+                  <span className="text-muted">{loggedInUser.email}</span>
+                  {loggedInUser.rang && (
+                    <>
+                      <br />
+                      <span className="badge bg-secondary">{loggedInUser.rang}</span>
+                    </>
+                  )}
+                </p>
+                <Button variant="outline-danger" onClick={handleLogout}>
+                  Kijelentkezés
+                </Button>
+              </div>
+            ) : (
             <Tabs
               activeKey={authMode}
               onSelect={(key) => setAuthMode((key as AuthMode) ?? 'login')}
@@ -382,6 +433,7 @@ function App() {
                 </Form>
               </Tab>
             </Tabs>
+            )}
           </Modal.Body>
         </Modal>
       </div>

@@ -4,6 +4,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { userek_rang } from 'generated/prisma/enums';
 import { PrismaService } from '../prisma.service';
 import { CreateEdzestervekDto } from './dto/create-edzestervek.dto';
 import { UpdateEdzestervekDto } from './dto/update-edzestervek.dto';
@@ -12,9 +13,45 @@ import { UpdateEdzestervekDto } from './dto/update-edzestervek.dto';
 export class EdzestervekService {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(createEdzestervekDto: CreateEdzestervekDto, userId: number) {
-    if (userId !== createEdzestervekDto.user_id) {
+  private canPublish(rang?: userek_rang | null) {
+    return rang === userek_rang.edzo || rang === userek_rang.admin;
+  }
+
+  private async getUserRang(userId: number): Promise<userek_rang | null> {
+    const user = await this.prisma.userek.findUnique({
+      where: { id: userId },
+      select: { rang: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`Felhasználó ${userId} nem található`);
+    }
+
+    return user.rang;
+  }
+
+  private async assertCanSetPublic(userId: number) {
+    const rang = await this.getUserRang(userId);
+
+    if (!this.canPublish(rang)) {
+      throw new ForbiddenException(
+        'Csak edző vagy admin rangú felhasználó publikálhat edzéstervet.',
+      );
+    }
+  }
+
+  async create(createEdzestervekDto: CreateEdzestervekDto, userId: number) {
+    const rang = await this.getUserRang(userId);
+    const isCoach = this.canPublish(rang);
+
+    // Regular users can only create plans in their own name.
+    // Coaches/admins can create plans for any user (sharing).
+    if (!isCoach && userId !== createEdzestervekDto.user_id) {
       throw new ForbiddenException('Csak a saját nevedben hozhatsz létre edzéstervet.');
+    }
+
+    if (createEdzestervekDto.publikus) {
+      await this.assertCanSetPublic(userId);
     }
 
     return this.prisma.edzestervek.create({
@@ -23,8 +60,20 @@ export class EdzestervekService {
   }
 
   findAll(userId?: number) {
+    // If not logged in, only public plans are visible.
     if (!userId) {
-      throw new UnauthorizedException('Bejelentkezés szükséges az edzéstervek megtekintéséhez.');
+      return this.prisma.edzestervek.findMany({
+        where: {
+          publikus: true,
+        },
+        orderBy: {
+          id: 'asc',
+        },
+        include: {
+          userek: true,
+          edzes_napok: true,
+        },
+      });
     }
 
     return this.prisma.edzestervek.findMany({
@@ -55,7 +104,10 @@ export class EdzestervekService {
     }
 
     if (!userId) {
-      throw new UnauthorizedException('Bejelentkezés szükséges az edzésterv megtekintéséhez.');
+      if (!plan.publikus) {
+        throw new UnauthorizedException('Bejelentkezés szükséges az edzésterv megtekintéséhez.');
+      }
+      return plan;
     }
 
     if (plan.user_id !== userId && !plan.publikus) {
@@ -66,10 +118,18 @@ export class EdzestervekService {
   }
 
   async update(id: number, updateEdzestervekDto: UpdateEdzestervekDto, userId: number) {
-    await this.findOne(id, userId);
+    const plan = await this.findOne(id, userId);
+    const rang = await this.getUserRang(userId);
+    const isCoach = this.canPublish(rang);
 
-    if (userId !== (updateEdzestervekDto.user_id ?? (await this.prisma.edzestervek.findUnique({ where: { id } }))?.user_id)) {
+    // Regular users can only update their own plans.
+    // Coaches/admins can update any plan.
+    if (!isCoach && userId !== (updateEdzestervekDto.user_id ?? plan.user_id)) {
       throw new ForbiddenException('Csak a saját edzéstervedet módosíthatod.');
+    }
+
+    if (updateEdzestervekDto.publikus) {
+      await this.assertCanSetPublic(userId);
     }
 
     return this.prisma.edzestervek.update({
@@ -87,7 +147,12 @@ export class EdzestervekService {
       throw new NotFoundException(`Edzésterv ${id} nem található`);
     }
 
-    if (plan.user_id !== userId) {
+    const rang = await this.getUserRang(userId);
+    const isCoach = this.canPublish(rang);
+
+    // Regular users can only delete their own plans.
+    // Coaches/admins can delete any plan.
+    if (!isCoach && plan.user_id !== userId) {
       throw new ForbiddenException('Csak a saját edzéstervedet törölheted.');
     }
 

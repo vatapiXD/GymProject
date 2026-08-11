@@ -7,6 +7,7 @@ interface CurrentUser {
   id: number;
   nev: string;
   email: string;
+  rang?: string | null;
 }
 
 interface AvailableUser {
@@ -159,6 +160,10 @@ const makeDraftDays = (count: number, previousDays: DraftDay[] = [], defaultExer
   });
 };
 
+const isEdzoOrAdmin = (user?: CurrentUser | null) => {
+  return user?.rang === 'edzo' || user?.rang === 'admin';
+};
+
 const formatMuscleGroups = (exercise?: ExerciseCatalogItem) => {
   if (!exercise) {
     return 'Ismeretlen izomcsoport';
@@ -175,7 +180,7 @@ const formatMuscleGroups = (exercise?: ExerciseCatalogItem) => {
 };
 
 export function Edzesterv({ currentUser }: EdzestervProps) {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('create');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('list');
   const [plans, setPlans] = useState<SavedPlan[]>([]);
   const [days, setDays] = useState<SavedDay[]>([]);
   const [planExercises, setPlanExercises] = useState<SavedPlanExercise[]>([]);
@@ -228,22 +233,25 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
   }, [editingPlanId, plans]);
 
   const activePlans = plans.filter((plan) => plan.aktiv !== false).length;
+  const canPublish = isEdzoOrAdmin(currentUser);
+
+  const canManagePlan = (plan: SavedPlan) => {
+    if (!currentUser?.id) {
+      return false;
+    }
+
+    return isEdzoOrAdmin(currentUser) || plan.user_id === currentUser.id;
+  };
 
   const loadData = async () => {
     setIsLoading(true);
     setErrorMessage(null);
 
-    if (!currentUser?.id) {
-      setPlans([]);
-      setDays([]);
-      setPlanExercises([]);
-      setIsLoading(false);
-      return;
-    }
-
-    const authHeaders = {
-      'X-User-Id': String(currentUser.id),
-    };
+    const authHeaders = currentUser?.id
+      ? {
+          'X-User-Id': String(currentUser.id),
+        }
+      : undefined;
 
     try {
       const [planResponse, dayResponse, exerciseResponse, exerciseCatalogResponse, userResponse] = await Promise.all([
@@ -404,7 +412,14 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
   };
 
   const handleStartEdit = (plan: SavedPlan) => {
-    if (!currentUser?.id || plan.user_id !== currentUser.id) {
+    if (!currentUser?.id) {
+      setErrorMessage('Bejelentkezés szükséges az edzésterv módosításához.');
+      return;
+    }
+
+    const isCoach = isEdzoOrAdmin(currentUser);
+
+    if (!isCoach && plan.user_id !== currentUser.id) {
       setErrorMessage('Csak a saját edzéstervedet módosíthatod.');
       return;
     }
@@ -469,6 +484,12 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
     }
 
     const plan = plans.find((candidate) => candidate.id === planId);
+    const isCoach = isEdzoOrAdmin(currentUser);
+
+    if (!isCoach && plan && plan.user_id !== currentUser.id) {
+      setErrorMessage('Csak a saját edzéstervedet törölheted.');
+      return;
+    }
     const isConfirmed = window.confirm(
       `Biztosan törölni szeretnéd a(z) "${plan?.nev ?? `#${planId}`}" edzéstervet? A művelet nem visszavonható.`,
     );
@@ -718,26 +739,11 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
           </Alert>
         )}
 
-        {!currentUser && (
-          <Alert variant="warning" className="shadow-sm">
-            Az edzéstervek megtekintéséhez és létrehozásához be kell jelentkezned. Kattints a <strong>Profilom</strong> menüpontra a bejelentkezéshez.
-          </Alert>
-        )}
-
-        <Tabs activeKey={activeTab} onSelect={(key) => setActiveTab((key as ActiveTab) ?? 'create')} className="mb-4">
+        <Tabs activeKey={activeTab} onSelect={(key) => setActiveTab((key as ActiveTab) ?? 'list')} className="mb-4">
+          {currentUser && (
           <Tab eventKey="create" title="Edzésterv létrehozása">
             <Card className="plan-panel border-0">
               <Card.Body>
-                {editingPlan && (
-                  <Alert variant="info" className="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                    <div className="mb-0">
-                      <strong>Módosítás alatt:</strong> {editingPlan.nev}
-                    </div>
-                    <Button variant="outline-secondary" size="sm" type="button" onClick={handleCancelEdit}>
-                      Módosítás megszakítása
-                    </Button>
-                  </Alert>
-                )}
                 <Form onSubmit={handleCreateSubmit}>
                   <Row className="g-4 mb-4">
                     <Col lg={4}>
@@ -780,9 +786,10 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
                         </Form.Select>
                       </Form.Group>
                     </Col>
+                    {canPublish && (
                     <Col lg={2}>
                       <Form.Group controlId="planUserId">
-                        <Form.Label>Felhasználó</Form.Label>
+                        <Form.Label>Megosztás kivel</Form.Label>
                         <Form.Select value={planUserId} onChange={(event) => setPlanUserId(event.target.value)} required>
                           <option value="">Válassz</option>
                           {users.map((user) => (
@@ -793,6 +800,7 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
                         </Form.Select>
                       </Form.Group>
                     </Col>
+                    )}
                   </Row>
 
                   <div className="d-flex gap-4 mb-4">
@@ -809,7 +817,13 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
                       label="Publikus (mindenki láthatja)"
                       checked={planPublic}
                       onChange={(event) => setPlanPublic(event.target.checked)}
+                      disabled={!canPublish}
                     />
+                    {!canPublish && (
+                      <span className="text-secondary small">
+                        Publikáláshoz edző vagy admin rang szükséges.
+                      </span>
+                    )}
                   </div>
 
                   <Row className="g-4">
@@ -1008,6 +1022,7 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
               </Card.Body>
             </Card>
           </Tab>
+          )}
 
           <Tab eventKey="list" title="Mentett edzéstervek">
             <Row className="g-4">
@@ -1105,6 +1120,7 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
                               <div className="fs-5 fw-semibold">{formatDate(selectedPlan.letrehozva)}</div>
                               <div className="text-secondary small mt-1">User ID: {selectedPlan.user_id}</div>
                             </div>
+                            {canManagePlan(selectedPlan) && (
                             <div className="d-flex gap-2">
                               <Button
                                 type="button"
@@ -1123,6 +1139,7 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
                                 Törlés
                               </Button>
                             </div>
+                            )}
                           </div>
                         </div>
 

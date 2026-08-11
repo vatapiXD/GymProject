@@ -9,7 +9,7 @@ import {
   Length,
   Min,
 } from 'class-validator';
-import { userek_cel, userek_nem } from 'generated/prisma/enums';
+import { userek_cel, userek_nem, userek_rang } from 'generated/prisma/enums';
 
 export class CreateUserekDto {
   @IsString()
@@ -52,4 +52,8 @@ export class CreateUserekDto {
   @IsOptional()
   @IsEnum(userek_cel)
   cel?: userek_cel;
+
+  @IsOptional()
+  @IsEnum(userek_rang)
+  rang?: userek_rang;
 }

@@ -81,6 +81,7 @@ model userek {
   eletkor     Int?
   nem         userek_nem?
   cel         userek_cel?   @default(izomtomeg_noveles)
+  rang        userek_rang?  @default(tag)
   letrehozva  DateTime      @default(now()) @db.Timestamp(0)
   edzestervek edzestervek[]
 }
@@ -106,6 +107,12 @@ enum userek_cel {
   fogyas
   erodobas
   szintentartas
+}
+
+enum userek_rang {
+  tag
+  edzo
+  admin
 }
 
 enum kaja_kategoria {

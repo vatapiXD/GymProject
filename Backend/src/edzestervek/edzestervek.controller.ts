@@ -50,10 +50,7 @@ export class EdzestervekController {
   findAll(@Headers('x-user-id') userIdHeader?: string) {
     const userId = this.getUserId(userIdHeader);
 
-    if (!userId) {
-      throw new UnauthorizedException('Bejelentkezés szükséges az edzéstervek megtekintéséhez.');
-    }
-
+    // If not logged in, only public plans are returned.
     return this.edzestervekService.findAll(userId);
   }
 
@@ -64,10 +61,7 @@ export class EdzestervekController {
   ) {
     const userId = this.getUserId(userIdHeader);
 
-    if (!userId) {
-      throw new UnauthorizedException('Bejelentkezés szükséges az edzésterv megtekintéséhez.');
-    }
-
+    // If not logged in, only public plans are returned.
     return this.edzestervekService.findOne(id, userId);
   }
 
