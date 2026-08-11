@@ -229,10 +229,6 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
     return new Map(gyakorlatok.map((exercise) => [exercise.id, exercise]));
   }, [gyakorlatok]);
 
-  const editingPlan = useMemo(() => {
-    return plans.find((plan) => plan.id === editingPlanId) ?? null;
-  }, [editingPlanId, plans]);
-
   const activePlans = plans.filter((plan) => plan.aktiv !== false).length;
   const canPublish = isEdzoOrAdmin(currentUser);
 
