@@ -5,8 +5,9 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { Alert, Button, Dropdown, Form, InputGroup, Modal, Nav, Navbar, Tab, Tabs } from 'react-bootstrap';
 import { Edzesterv } from './components/Edzesterv';
 import { HomePage } from './pages/HomePage';
+import { API_BASE_URL } from './config';
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
+const API_URL = API_BASE_URL;
 
 const STORAGE_KEY = 'dz-gym-user';
 

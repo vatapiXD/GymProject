@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Alert, Badge, Button, Card, Col, Container, Form, Row, Spinner, Table, Tab, Tabs } from 'react-bootstrap';
+import { API_BASE_URL } from '../config';
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
+const API_URL = API_BASE_URL;
 
 interface CurrentUser {
   id: number;
