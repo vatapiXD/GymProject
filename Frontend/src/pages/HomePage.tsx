@@ -61,7 +61,7 @@ export function HomePage({ navigateTo }: HomePageProps) {
               <Card.Text className="text-muted flex-grow-1">
                 Válogass az alapanyagok között, és számold ki a napi fehérje-, szénhidrát- és zsírfogyasztásodat.
               </Card.Text>
-              <Button variant="outline-primary" className="mt-auto" disabled>
+              <Button onClick={() => navigateTo('/kaja-makrok')} variant="outline-primary" className="mt-auto">
                 Kaja adatbázis megnyitása
               </Button>
             </Card.Body>

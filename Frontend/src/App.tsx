@@ -4,6 +4,7 @@ import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Alert, Button, Dropdown, Form, InputGroup, Modal, Nav, Navbar, Tab, Tabs } from 'react-bootstrap';
 import { Edzesterv } from './components/Edzesterv';
+import { Kaja } from './components/Kaja';
 import { HomePage } from './pages/HomePage';
 import { API_BASE_URL } from './config';
 
@@ -250,7 +251,16 @@ function App() {
                 Edzéstervek
               </Nav.Link>
               <Nav.Link href="#exercises">Gyakorlatok</Nav.Link>
-              <Nav.Link href="#nutrition">Kaja & Makrók</Nav.Link>
+              <Nav.Link
+                href="/kaja-makrok"
+                active={pathname === '/kaja-makrok'}
+                onClick={(event) => {
+                  event.preventDefault();
+                  navigateTo('/kaja-makrok');
+                }}
+              >
+                Kaja & Makrók
+              </Nav.Link>
               <Nav.Link href="#diet">Étrend</Nav.Link>
               {loggedInUser ? (
                 <Dropdown as={Nav.Item}>
@@ -276,7 +286,13 @@ function App() {
           </Navbar.Collapse>
         </Navbar>
 
-        {pathname === '/edzestervek' ? <Edzesterv currentUser={loggedInUser} /> : <HomePage navigateTo={navigateTo} />}
+        {pathname === '/edzestervek' ? (
+          <Edzesterv currentUser={loggedInUser} />
+        ) : pathname === '/kaja-makrok' ? (
+          <Kaja />
+        ) : (
+          <HomePage navigateTo={navigateTo} />
+        )}
 
         <Modal show={showAuthModal} onHide={closeAuthModal} centered size="lg">
           <Modal.Header closeButton>

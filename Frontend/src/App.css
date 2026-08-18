@@ -157,3 +157,23 @@
 	background: linear-gradient(180deg, rgba(13, 110, 253, 0.04), rgba(13, 110, 253, 0.01));
 	border: 1px solid rgba(13, 110, 253, 0.08);
 }
+
+.kaja-section {
+	position: relative;
+	margin-top: 3rem;
+	padding: 3rem 0;
+	border-radius: 2rem;
+	overflow: hidden;
+	background:
+		linear-gradient(135deg, rgba(25, 135, 84, 0.06), rgba(215, 222, 235, 0.12)),
+		linear-gradient(180deg, #f8fbff 0%, #eef3f9 100%);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.kaja-table th {
+	white-space: nowrap;
+}
+
+.kaja-table td {
+	vertical-align: middle;
+}
