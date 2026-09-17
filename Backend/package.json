@@ -90,8 +90,5 @@
         "coverageDirectory": "../coverage",
         "testEnvironment": "node"
         ,"testPathIgnorePatterns": ["/edzes_napok/", "/gyakorlatok/", "/izomcsoportok/", "/kaja/", "/userek/"]
-    },
-    "prisma": {
-        "seed": "tsx prisma/seed.ts"
     }
 }
