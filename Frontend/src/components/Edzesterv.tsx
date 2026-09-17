@@ -244,15 +244,11 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
     setIsLoading(true);
     setErrorMessage(null);
 
-    const authHeaders = currentUser?.id
-      ? {
-          'X-User-Id': String(currentUser.id),
-        }
-      : undefined;
+    const authHeaders = undefined;
 
     try {
       const [planResponse, dayResponse, exerciseResponse, exerciseCatalogResponse, userResponse] = await Promise.all([
-        fetch(`${API_URL}/edzestervek`, { headers: authHeaders }),
+        fetch(`${API_URL}/edzestervek`, { headers: authHeaders, credentials: 'include' }),
         fetch(`${API_URL}/edzes-napok`),
         fetch(`${API_URL}/edzesterv-gyakorlatok`),
         fetch(`${API_URL}/gyakorlatok`),
@@ -502,7 +498,6 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
       const response = await fetch(`${API_URL}/edzestervek/${planId}`, {
         method: 'DELETE',
         headers: {
-          'X-User-Id': String(currentUser.id),
         },
       });
 
@@ -551,7 +546,6 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            'X-User-Id': String(currentUser.id),
           },
           body: JSON.stringify({
             user_id: Number(planUserId),
@@ -586,7 +580,6 @@ export function Edzesterv({ currentUser }: EdzestervProps) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-User-Id': String(currentUser.id),
           },
           body: JSON.stringify({
             user_id: Number(planUserId),

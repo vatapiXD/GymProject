@@ -2,32 +2,34 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, ParseIntPipe } from 
 import { IzomcsoportokService } from './izomcsoportok.service';
 import { CreateIzomcsoportokDto } from './dto/create-izomcsoportok.dto';
 import { UpdateIzomcsoportokDto } from './dto/update-izomcsoportok.dto';
+import { Public, Roles } from '../auth/auth.decorators';
+import { userek_rang } from '@prisma/client';
 
 @Controller('izomcsoportok')
 export class IzomcsoportokController {
   constructor(private readonly izomcsoportokService: IzomcsoportokService) {}
 
-  @Post()
+  @Roles(userek_rang.admin) @Post()
   create(@Body() createIzomcsoportokDto: CreateIzomcsoportokDto) {
     return this.izomcsoportokService.create(createIzomcsoportokDto);
   }
 
-  @Get()
+  @Public() @Get()
   findAll() {
     return this.izomcsoportokService.findAll();
   }
 
-  @Get(':id')
+  @Public() @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.izomcsoportokService.findOne(id);
   }
 
-  @Patch(':id')
+  @Roles(userek_rang.admin) @Patch(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() updateIzomcsoportokDto: UpdateIzomcsoportokDto) {
     return this.izomcsoportokService.update(id, updateIzomcsoportokDto);
   }
 
-  @Delete(':id')
+  @Roles(userek_rang.admin) @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.izomcsoportokService.remove(id);
   }

@@ -13,3 +13,14 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea
+# Dependencies and generated artifacts
+node_modules/
+dist/
+build/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+.env.*
+!.env.example
+# End of ignore rules

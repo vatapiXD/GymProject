@@ -71,6 +71,7 @@ function App() {
   });
   const [registerForm, setRegisterForm] = useState({
     nev: '',
+    username: '',
     email: '',
     jelszo: '',
   });
@@ -128,10 +129,9 @@ function App() {
     setShowPassword({ login: false, register: false });
   };
 
-  const handleLogout = () => {
-    setLoggedInUser(null);
-    localStorage.removeItem(STORAGE_KEY);
-    setShowAuthModal(false);
+  const handleLogout = async () => {
+    await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
+    setLoggedInUser(null); localStorage.removeItem(STORAGE_KEY); setShowAuthModal(false);
   };
 
   const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -140,11 +140,12 @@ function App() {
     setLoginStatus(null);
 
     try {
-      const response = await fetch(`${API_URL}/login`, {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(loginForm),
       });
 
@@ -179,13 +180,15 @@ function App() {
     setRegisterStatus(null);
 
     try {
-      const response = await fetch(`${API_URL}/register`, {
+      const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           nev: registerForm.nev,
+          username: registerForm.username,
           email: registerForm.email,
           jelszo: registerForm.jelszo,
         }),
@@ -201,7 +204,7 @@ function App() {
         type: 'success',
         message: 'A felhasználó létrehozva a backendben.',
       });
-      setRegisterForm({ nev: '', email: '', jelszo: '' });
+      setRegisterForm({ nev: '', username: '', email: '', jelszo: '' });
       setAuthMode('login');
     } catch (error) {
       setRegisterStatus({
@@ -397,6 +400,18 @@ function App() {
                           nev: event.target.value,
                         }))
                       }
+                      required
+                    />
+                  </Form.Group>
+                  <Form.Group className="mb-3" controlId="registerUsername">
+                    <Form.Label>Felhasználónév</Form.Label>
+                    <Form.Control
+                      type="text"
+                      minLength={3}
+                      maxLength={40}
+                      pattern="[A-Za-z0-9_]+"
+                      value={registerForm.username}
+                      onChange={(event) => setRegisterForm((current) => ({ ...current, username: event.target.value }))}
                       required
                     />
                   </Form.Group>

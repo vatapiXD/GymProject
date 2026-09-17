@@ -7,7 +7,7 @@ import {
 	Length,
 	Min,
 } from 'class-validator';
-import { kaja_kategoria } from 'generated/prisma/enums';
+import { kaja_kategoria } from '@prisma/client';
 
 export class CreateKajaDto {
 	@IsString()

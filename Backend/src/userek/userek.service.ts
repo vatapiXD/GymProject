@@ -44,6 +44,8 @@ export class UserekService {
   }
 
   private sanitizeUser<T extends { jelszo_hash: string }>(user: T) {
+    // Password hashes must never leave the service boundary.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { jelszo_hash, ...safeUser } = user;
 
     return safeUser;
@@ -108,7 +110,7 @@ export class UserekService {
       },
     });
 
-    return users.map(({ jelszo_hash, ...safeUser }) => safeUser);
+    return users.map((user) => this.sanitizeUser(user));
   }
 
   async findOne(id: number) {
@@ -135,6 +137,16 @@ export class UserekService {
     });
 
     return this.sanitizeUser(updatedUser);
+  }
+
+  async changePassword(id: number, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.userek.findUnique({ where: { id } });
+    if (!user || !this.verifyPassword(currentPassword, user.jelszo_hash)) {
+      throw new UnauthorizedException('A jelenlegi jelszó hibás.');
+    }
+    await this.prisma.userek.update({ where: { id }, data: { jelszo_hash: this.hashPassword(newPassword) } });
+    await this.prisma.authSession.updateMany({ where: { userId: id, revokedAt: null }, data: { revokedAt: new Date() } });
+    return { success: true };
   }
 
   async remove(id: number) {

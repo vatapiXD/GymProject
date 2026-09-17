@@ -11,27 +11,29 @@ import {
 import { GyakorlatokService } from './gyakorlatok.service';
 import { CreateGyakorlatokDto } from './dto/create-gyakorlatok.dto';
 import { UpdateGyakorlatokDto } from './dto/update-gyakorlatok.dto';
+import { Public, Roles } from '../auth/auth.decorators';
+import { userek_rang } from '@prisma/client';
 
 @Controller('gyakorlatok')
 export class GyakorlatokController {
   constructor(private readonly gyakorlatokService: GyakorlatokService) {}
 
-  @Post()
+  @Roles(userek_rang.admin) @Post()
   create(@Body() createGyakorlatokDto: CreateGyakorlatokDto) {
     return this.gyakorlatokService.create(createGyakorlatokDto);
   }
 
-  @Get()
+  @Public() @Get()
   findAll() {
     return this.gyakorlatokService.findAll();
   }
 
-  @Get(':id')
+  @Public() @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.gyakorlatokService.findOne(id);
   }
 
-  @Patch(':id')
+  @Roles(userek_rang.admin) @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateGyakorlatokDto: UpdateGyakorlatokDto,
@@ -39,7 +41,7 @@ export class GyakorlatokController {
     return this.gyakorlatokService.update(id, updateGyakorlatokDto);
   }
 
-  @Delete(':id')
+  @Roles(userek_rang.admin) @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.gyakorlatokService.remove(id);
   }
